@@ -1,0 +1,168 @@
+---
+title: "Ejercicios de Descenso del Gradiente"
+author: "Federico Ros"
+date: "17/11/2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+# cómo se incrementa el Coste en funcion de iteración.
+setwd("/Users/fede/Desktop/DS/Machine Learning")
+datos <- read.csv("./4_1_data.csv")
+plot(datos$score.1, datos$score.2, col = as.factor(datos$label), xlab = "score.1", ylab = "score.2")
+
+```
+Vemos claramente el punto de corte imaaginario entre los alumnos que han entrado a la universidad y los que no han superado la prueba. 
+
+
+## 1. Test the TestGradientDescent function with the training set (4_1_data.csv). Obtain the confusion matrix.
+```{r}
+# tomamos una muestra de training y otra de test
+set.seed(1234)
+n = nrow(datos)
+id_train <- sample(1:n, 0.80*n)
+datos.train <- datos[id_train,]
+datos.test <- datos[-id_train,]
+# creamos nuestras matrices de train y test para poder predecir después:
+x.train <- data.frame(rep(1,80), datos.train$score.1, datos.train$score.2)
+x.train <- as.matrix(x.train)
+x <- x.train
+
+y.train <- datos.train$label
+y <- y.train
+
+
+x.test <- data.frame(rep(1,20), datos.test$score.1, datos.test$score.2)
+x.test <- as.matrix(x.test)
+
+y.test <- datos.test$label
+```
+# defino la funcion (Pi/(1-Pi)) y las matrices Xi e Yi de mi modelo logit, me faltan estimar las Betas:
+```{r}
+sigmoide <- function(z) {
+  return( 1/(1+exp(-z)))
+}
+
+
+```
+# definimos la funcion de costes
+```{r}
+funcionCostes <- function(parametros, x, y) {
+  
+  n <- nrow(x)
+  g <- sigmoide(x %*% parametros)  # %*%  para multiplicar matrices.
+  j <-  ((-1)/n)*sum((y*log(g))+(1-y)*log(1-g))
+   
+}
+```
+
+```{r}
+# inicialmente obtenemos nuestros coste máximo con nuestro vector de ceros; a partir de este vector encontraremos aquellos valores para el mismo que minimicen el coste.
+
+parametros <- rep(0, ncol(x))
+
+# coste inicial 
+
+coste_inicial = funcionCostes(parametros, x, y)
+coste_inicial
+
+print(paste("coste inicial de la función: ", 
+              convergence <- c(funcionCostes(parametros, x, y)), sep = ""))
+```
+Vemos que con el vector de 0 del coste inicial el porcentaje máximo de coste sería de alrededor de 69%. Vamos a intentar obtener el número de iteraciones que consiga minimizar el coste final de la función anterior.
+
+
+Definimos la función de descenso de gradiente con 80 iteraciones tal y como indica la gráfica que hemos obtenido en eñ ejercicio 2, empieza no decrecer alrededor de 80 iteraciones. No estamos seguros de que sean exactamente 80 pero probamos en principio con este número :
+```{r}
+funcionGradiente <- function(iteraciones = 80, x, y){
+  
+
+parametros_optimizados <- optim(par = parametros, fn = funcionCostes, x = x, y = y, 
+                                   method = "BFGS", lower = -Inf, upper = Inf, control = list(maxit = iteraciones), hessian = F)
+
+print(parametros_optimizados)
+
+parametros <- parametros_optimizados$par
+
+print(paste("Final Cost Function value: ", 
+              convergence <- c(funcionCostes(parametros, x, y)), sep = ""))
+
+return(parametros )
+  
+}
+
+funcionGradiente(80, x, y)
+```
+# predecimos con el testing y el training set:
+# predecimos con el testing
+```{r}
+# Para finalizar el apartado 1, vamos a predcir y obtener la matriz de confusión con nuestro data set de entrenamiento, para ello debemos definir nº de iteraciones y definir una función con los parámetros utilizado:
+
+iteraciones = 80
+parametros_optimizados <- optim(par = parametros, fn = funcionCostes, x = x, y = y, 
+                                   method = "BFGS", lower = -Inf, upper = Inf, control = list(maxit = iteraciones), hessian = F)
+x.train <- data.frame(rep(1,20), datos.train$score.1, datos.train$score.2)
+x.train <- as.matrix(x.train)
+# x.test
+
+parametros <- as.matrix(parametros_optimizados$par)  #utilizamos los parametros estimados con trainning
+# parametros
+
+z_estimado <- x.train %*% parametros
+
+# como nuestro z no est? entre (0,1), lo convertimos a valores dentro del intervalo (0,1)
+z <- z_estimado
+
+prediccion <- sigmoide(z)
+prediccion 
+
+prediccion[abs(prediccion - 1) < abs(prediccion - 0)] = 1
+prediccion[abs(prediccion - 1) > abs(prediccion - 0)] = 0
+prediccion
+# hemos convertidos los valores a dicotómicos, de cero o uno. 
+
+table(y, prediccion)
+
+# Como esperábamos el % de acierto no es de 100% y tenenemos un total de 10 fallos repartidos entre no aceptar alumnos que en realidad si deberían ser aceptados y aceptar alumnos que no deberían haber sido aceptados.
+```
+
+
+
+## 2.Obtain a graph representing how the cost function evolves depending of the number of iterations.
+```{r}
+
+ # Hacemos un bucle para obtener las iteraciones y representarlos como puntos en su influencia en la funcion de costes:
+
+iteraciones<-200
+ vect<-NULL
+ for(i in (1: iteraciones)) {
+  parametros_optimizados <- optim(par = parametros, fn = funcionCostes, x = x, y = y, 
+                                   method = "BFGS", lower = -Inf, upper = Inf, control = list(maxit = i), hessian = T)
+   
+   vect[i] <- parametros_optimizados$value
+ }
+   
+ # y graficamos el vector de iteraciones 
+ plot(vect)
+
+
+```
+
+
+## 5.Optional (+0.5 - 1 points in final grade).
+
+-Implement the algorithm step by step using the update rule and an iterative algorithm, do not use the optim function.
+-Research about regularization in logistic regression and explain it.
+-Explain your work results using the RMarkdown format.
+```{r}
+
+```
+
+
+
+
